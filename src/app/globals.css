@@ -1,26 +1,609 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #05060a;
+  --foreground: #f4f6fa;
+  --blue: #1e9dff;
+  --orange: #ff7b17;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-shock-blue: var(--blue);
+  --color-shock-orange: var(--orange);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-mono), monospace;
+}
+
+/* ================================== scene ================================== */
+/* Layout anchors mirror the poster: wordmark center at 33svh, subtitle ~45svh,
+   date row 63.5svh, CTA 71.5svh, footer pinned. Everything scales off
+   --logo-w so the composition holds at any viewport. */
+
+.scene {
+  /* --glyph-w = on-screen width of the wordmark glyphs (the PNG canvas has a
+     thin transparent margin around the glyphs — measured at 3840/3670 on the
+     current asset — so the img itself renders slightly wider than this) */
+  --glyph-w: min(94vw, 48rem, 56svh);
+  --logo-w: calc(var(--glyph-w) * 1.047);
+  /* Orb size unit. vmax is a landscape-only assumption — see the note on BAND
+     in page.tsx for why portrait needs a vmin basis. */
+  --su: 1vmax;
+  /* Vertical anchor for the wordmark; the subtitle hangs off it so the two
+     never drift apart. */
+  --hero-y: 36svh;
+  /* Horizontal spread of the orb bank about the centreline (1 = as authored). */
+  --xspread: 1;
+  /* Diagonal tilt of the bank; 0 keeps the authored left/right split. */
+  --ytilt: 0;
+  /* Horizontal scale of the edge gels. Both of these exist because the rig is
+     authored in percentages, which are percentages of *width* — so everything
+     silently compresses as the viewport narrows. */
+  --gx: 1;
+  position: relative;
+  min-height: 100svh;
+  overflow: hidden;
+  /* Ends deep and chromatic, centre stays near-black: the two gels should read
+     as separate walls of colour, never as a gradient that meets in the middle
+     (blue + orange averaging out is exactly what produced the muddy band). */
+  background: linear-gradient(102deg, #07121f 0%, #040509 40%, #040407 60%, #170a03 100%);
+}
+
+/* --------------------------- portrait composition ---------------------------
+   A left/right colour split needs width to breathe. On a tall frame the two
+   gels have nowhere to fall off before they meet, so they collide down the
+   middle as a vertical seam no amount of softening really hides. Portrait
+   therefore re-stages the same rig on the diagonal — blue top-left, amber
+   bottom-right — which is the natural axis of a tall frame and gives each hue
+   the full height of the viewport to fade across. */
+@media (orientation: portrait) {
+  .scene {
+    --su: 1.22vmin;
+    /* pull the bank inboard so the light sources sit inside the frame */
+    --xspread: 0.52;
+    /* and swing it onto the diagonal to match the wash below */
+    --ytilt: 0.36;
+    --gx: 1.85;
+
+    background: linear-gradient(
+      158deg,
+      #07121f 0%,
+      #050b14 18%,
+      #040509 42%,
+      #040407 58%,
+      #110804 82%,
+      #180a03 100%
+    );
+  }
+
+  /* NOTE: the .atmos-wash and .vignette portrait overrides are NOT here — they
+     live at the end of this file, after the rules they override. Same
+     specificity means source order decides, and both base rules are declared
+     below this point. */
+}
+
+/* =============================== atmosphere ================================ */
+/* A depth rig:
+     1. .atmos-wash    flat, static, outside the camera — anchors the identity
+     2. .camera        perspective group; its orbit+dolly drives the parallax
+     3. .atmos-field   deepest plates, counter-rotating (29s / 37s, opposed)
+     4. .orb           twelve light sources across four depth bands
+   Orb depth, size, colour and blur are set per band in page.tsx; see the long
+   note there for which cues are derived from the perspective and which are
+   authored.
+
+   Cost: every animation is transform / opacity / rotate only, so the field
+   composites on the GPU. The blurs are static per element — a blurred element
+   whose own animation is transform-only is rasterised once and then reused, so
+   the blur is paid at raster, not per frame. */
+
+.atmos {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  /* Shallow enough that z reads as real depth. Larger values flatten the rig
+     toward an orthographic projection and the parallax quietly disappears. */
+  perspective: 1200px;
+  perspective-origin: 50% 50%;
+}
+
+/* ---- 2. camera ------------------------------------------------------------
+   Rotation is the valuable part: rotating about the camera origin displaces a
+   point by z·sin(θ), so bands on opposite sides of the focal plane translate in
+   opposite directions. That counter-swing is the cue that cannot be faked by
+   giving flat layers different speeds. The dolly (translateZ) adds a
+   differential scale change on top. */
+.camera {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  will-change: transform;
+  /* negative delay so that, when prefers-reduced-motion pauses the rig, the
+     camera freezes at a slight angle rather than at identity — the static
+     composition keeps its depth asymmetry instead of flattening out */
+  animation: camera-orbit 67s linear -15s infinite;
+}
+
+/* Rotation amplitude is the main lever for how "3D" the rig reads — it is what
+   displaces far and near bands in opposite directions on screen. Pushed hard
+   here (up to 6deg / 2.7deg, versus a barely-there 2.2deg / 1deg before) is
+   deliberate: at these z-depths a few degrees of orbit is already a large
+   apparent swing for the near and far bands, so this reads as a slow,
+   confident camera move rather than a jitter. The ±150px dolly stays well
+   inside the 1200px perspective even added to the foreground band's own
+   +250px z, so nothing crosses the camera plane and inverts. */
+@keyframes camera-orbit {
+  0% {
+    transform: translate3d(0, 0, 0) rotateY(0deg) rotateX(0deg);
+  }
+  23% {
+    transform: translate3d(-4%, 2.4%, 110px) rotateY(5.2deg) rotateX(-2.2deg);
+  }
+  47% {
+    transform: translate3d(2.8%, 4.6%, -90px) rotateY(-1.9deg) rotateX(2.7deg);
+  }
+  71% {
+    transform: translate3d(4.6%, -3.2%, 150px) rotateY(-6deg) rotateX(1.3deg);
+  }
+  88% {
+    transform: translate3d(-1.6%, -4.3%, -48px) rotateY(2.4deg) rotateX(-1.1deg);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) rotateY(0deg) rotateX(0deg);
+  }
+}
+
+/* ---- 1. static wash -------------------------------------------------------
+   Deliberately does not move. It is the thing the drifting layers are read
+   against; if this drifted too, the composition would have nothing holding it. */
+.atmos-wash {
+  position: absolute;
+  inset: -6%;
+  /* Tighter falloff (transparent by ~52-58% rather than 60-68%) so each gel
+     dies out well before the centreline. The previous stops let the two sides
+     overlap across the middle, and screen-blending opposed hues there averaged
+     to a desaturated grey-brown — the "mud" in the middle of the frame. */
+  background:
+    radial-gradient(calc(38% * var(--gx)) 50% at 0% 26%, rgba(12, 132, 255, 0.72), rgba(12, 132, 255, 0.3) 34%, rgba(12, 132, 255, 0.08) 54%, transparent 74%),
+    radial-gradient(calc(30% * var(--gx)) 38% at -4% 58%, rgba(8, 108, 240, 0.58), rgba(8, 108, 240, 0.24) 34%, rgba(8, 108, 240, 0.06) 54%, transparent 74%),
+    radial-gradient(calc(22% * var(--gx)) 26% at 4% 8%, rgba(16, 142, 255, 0.36), rgba(16, 142, 255, 0.14) 36%, transparent 72%),
+    radial-gradient(calc(20% * var(--gx)) 22% at 0% 90%, rgba(10, 118, 248, 0.42), rgba(10, 118, 248, 0.16) 36%, transparent 72%),
+    radial-gradient(calc(42% * var(--gx)) 58% at 100% 40%, rgba(255, 104, 10, 0.76), rgba(255, 104, 10, 0.32) 34%, rgba(255, 104, 10, 0.09) 54%, transparent 74%),
+    radial-gradient(calc(34% * var(--gx)) 44% at 102% 72%, rgba(255, 90, 8, 0.62), rgba(255, 90, 8, 0.26) 34%, rgba(255, 90, 8, 0.07) 54%, transparent 74%),
+    radial-gradient(calc(27% * var(--gx)) 28% at 100% 10%, rgba(255, 112, 16, 0.46), rgba(255, 112, 16, 0.18) 36%, transparent 72%),
+    radial-gradient(calc(29% * var(--gx)) 24% at 104% 92%, rgba(255, 126, 22, 0.46), rgba(255, 126, 22, 0.18) 36%, transparent 72%);
+}
+
+/* ---- 2. counter-rotating fields ------------------------------------------
+   Rotation of a large, soft, off-centre field is imperceptible as rotation —
+   you only register that the light keeps arriving from a slightly different
+   place. Opposite directions and coprime-ish periods stop the two from ever
+   settling into a shared rhythm. */
+.atmos-field {
+  position: absolute;
+  top: 50%;
+  width: 155vmax;
+  height: 155vmax;
+  /* deepest plates in the rig — behind even the far orb bank */
+  translate: -50% -50% -1150px;
+  border-radius: 50%;
+  mix-blend-mode: screen;
+  will-change: transform;
+  animation: field-spin var(--dur) linear infinite;
+}
+
+.atmos-field--blue {
+  left: 0%;
+  --dur: 29s;
+  background:
+    radial-gradient(26% 20% at 63% 37%, rgba(10, 118, 245, 0.26), transparent 68%),
+    radial-gradient(20% 27% at 37% 64%, rgba(30, 150, 255, 0.16), transparent 70%),
+    radial-gradient(16% 15% at 52% 77%, rgba(8, 92, 220, 0.16), transparent 72%);
+}
+
+.atmos-field--amber {
+  left: 100%;
+  --dur: 37s;
+  animation-direction: reverse;
+  background:
+    radial-gradient(25% 21% at 38% 40%, rgba(255, 92, 8, 0.27), transparent 68%),
+    radial-gradient(19% 26% at 62% 63%, rgba(255, 132, 28, 0.17), transparent 70%),
+    radial-gradient(15% 16% at 47% 24%, rgba(255, 108, 14, 0.16), transparent 72%);
+}
+
+@keyframes field-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---- 4. orbs --------------------------------------------------------------
+   Centring AND depth both live on the `translate` property (it takes a third,
+   z value), which leaves the `transform` channel entirely free for the drift
+   keyframes. Without that split the drift would overwrite the translateZ and
+   the whole rig would collapse to a single plane. */
+.orb {
+  position: absolute;
+  /* x is rescaled about the centreline rather than used directly. The bank is
+     authored for a wide frame, where x values of -12 or 110 put a light just
+     outside the edge and let its falloff spill inward. On a narrow viewport
+     that same percentage is a much shorter distance, so those lights end up
+     entirely off-screen and only their rims bleed in — the orbs read as smears
+     pinned to the edges instead of sources in the scene. --xspread compresses
+     the spread toward the centre so they sit inside the frame. */
+  left: calc(50% + (var(--x) - 50) * var(--xspread) * 1%);
+  /* y is tilted by how far the light sits from the centreline, which converts
+     the left/right colour split into a diagonal one. Blue sources (low x) rise,
+     amber ones (high x) fall. --ytilt is 0 in landscape, so this is an identity
+     transform there and the authored composition is untouched. */
+  top: calc((var(--y) + (var(--x) - 50) * var(--ytilt)) * 1%);
+  /* A uniform reference box, NOT the orb's own size — the drift keyframes use
+     percentages, which resolve against the animated element. Sizing this box
+     per-orb would give the (much larger) far bank a correspondingly larger
+     world-space motion, cancelling out the perspective compression and
+     destroying the parallax. Fixed here, every band moves the same distance in
+     world space and the projection alone decides screen speed, which is the
+     whole point of using a real camera. The core overflows this box freely. */
+  width: 40vmax;
+  height: 40vmax;
+  translate: -50% -50% var(--z);
+  /* Peak opacity lives here as a static value so the breathe keyframes below
+     can hold literal numbers. --o is the orb's base opacity pre-multiplied by
+     the breathe peak; see the note on @keyframes breathe. */
+  opacity: var(--o);
+  mix-blend-mode: screen;
+  will-change: transform;
+  /* linear, deliberately: any ease-in-out decelerates to a near-stop at every
+     waypoint, which at this tempo reads as a pulse. Constant velocity through
+     the corners keeps the field permanently in motion. */
+  animation: var(--path) var(--drift) linear var(--delay) infinite;
+}
+
+.orb--p1 {
+  --path: drift-1;
+}
+.orb--p2 {
+  --path: drift-2;
+}
+.orb--p3 {
+  --path: drift-3;
+}
+
+.orb__core {
+  /* centred on the reference box, but sized independently of it */
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--size) * var(--su));
+  /* never square: a circle is legible as a primitive, an ellipse is not */
+  height: calc(var(--size) * var(--su) * var(--ar));
+  translate: -50% -50%;
+  will-change: transform, rotate, opacity;
+  /* Depth of field. This is the one place a blur filter earns its cost: it is
+     static per element, so it rasterises once and the transform animations
+     above reuse the cached texture.
+
+     The filter also flattens this element to 2D — which is exactly why it is on
+     the leaf and not on .orb or .camera, either of which would collapse the
+     perspective. */
+  filter: blur(var(--blur));
+  /* Seven-stop gaussian-ish falloff, scaled by --k (core contrast, set per
+     band). The peak is deliberately low and most of the energy sits in the
+     tail — a high-contrast core is what makes even a soft gradient read as a
+     discrete ball, so only the focal band gets --k above 1. */
+  background: radial-gradient(
+    closest-side ellipse,
+    rgb(var(--c) / calc(0.46 * var(--k))) 0%,
+    rgb(var(--c) / calc(0.38 * var(--k))) 14%,
+    rgb(var(--c) / calc(0.26 * var(--k))) 29%,
+    rgb(var(--c) / calc(0.155 * var(--k))) 45%,
+    rgb(var(--c) / calc(0.075 * var(--k))) 62%,
+    rgb(var(--c) / calc(0.025 * var(--k))) 80%,
+    rgb(var(--c) / 0) 100%
+  );
+  /* Two animations, two separate property channels: `transform` carries the
+     breathe, the standalone `rotate` property carries the spin. They compose
+     without overwriting each other and run on unrelated periods, so the
+     ellipse never presents the same silhouette twice in any useful timeframe. */
+  animation:
+    breathe var(--breathe) ease-in-out calc(var(--delay) * 1.7) infinite,
+    orb-spin var(--spin) linear calc(var(--delay) * 2.3) infinite;
+}
+
+/* direction applies per-animation, in declaration order: breathe, then spin */
+.orb--ccw > .orb__core {
+  animation-direction: normal, reverse;
+}
+
+@keyframes orb-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+
+/* Irregular waypoints, closed back to the origin. Not a circle and not a sine —
+   an even path reads as machinery. Each closes at 100% so there is never the
+   stop-and-reverse that `alternate` produces. */
+@keyframes drift-1 {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  21% {
+    transform: translate3d(25%, -31%, 0);
+  }
+  44% {
+    transform: translate3d(-14%, -45%, 0);
+  }
+  63% {
+    transform: translate3d(-38%, 9%, 0);
+  }
+  84% {
+    transform: translate3d(13%, 34%, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes drift-2 {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  27% {
+    transform: translate3d(-32%, 23%, 0);
+  }
+  49% {
+    transform: translate3d(18%, 43%, 0);
+  }
+  71% {
+    transform: translate3d(45%, -14%, 0);
+  }
+  88% {
+    transform: translate3d(-9%, -31%, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes drift-3 {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  18% {
+    transform: translate3d(-23%, -20%, 0);
+  }
+  39% {
+    transform: translate3d(32%, -29%, 0);
+  }
+  58% {
+    transform: translate3d(38%, 27%, 0);
+  }
+  81% {
+    transform: translate3d(-18%, 40%, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* Runs on its own period, against the drift — one orb's own state therefore
+   does not repeat until drift and breathe realign, which is ~an hour out.
+
+   The opacity values are literals rather than calc(var(--o) * n) on purpose: a
+   keyframe that references a custom property cannot be composited, so it forces
+   a style recalc on the main thread every frame, for every orb. Instead .orb
+   carries a static `opacity: var(--o)` where --o is already the *peak* (base ×
+   PEAK in page.tsx), and these literals ride below it as fractions of that peak:
+     0.667 = 1.00 / 1.50  → base
+     1                    → peak
+     0.367 = 0.55 / 1.50  → trough
+   Nested opacity multiplies, so the effective values are base / base×1.50 /
+   base×0.55 exactly as intended — and the whole thing stays on the compositor.
+   Scale swing is pushed hard too (0.72–1.35, versus a barely-there 0.84–1.22
+   before) — a light source that visibly pulses reads as alive in a way that
+   pure position drift alone does not. */
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.667;
+  }
+  37% {
+    transform: scale(1.35);
+    opacity: 1;
+  }
+  69% {
+    transform: scale(0.72);
+    opacity: 0.367;
+  }
+}
+
+/* keep the center pit-black like the poster */
+.vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    /* deep well behind the wordmark — holds the centre black so the gels stay
+       legible as separate walls of colour at the edges */
+    radial-gradient(
+      62% 48% at 50% 38%,
+      rgba(2, 3, 6, 0.9) 0%,
+      rgba(2, 3, 6, 0.52) 44%,
+      rgba(2, 3, 6, 0.16) 68%,
+      transparent 82%
+    ),
+    /* Corner falloff only — deliberately wide and weak. The gels live at the
+       left and right edges, so anything that darkens the frame uniformly is
+       fighting the composition; this has to bite in the corners and nowhere
+       else. */
+    radial-gradient(150% 118% at 50% 50%, transparent 74%, rgba(2, 3, 6, 0.42) 100%);
+}
+
+/* film grain — interference from tiny repeating conic gradients */
+.grain {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+  /* soft-light, not overlay: overlay on a near-black base lifts the blacks into
+     a flat grey haze. soft-light leaves the shadows where they are. */
+  opacity: 0.3;
+  mix-blend-mode: soft-light;
+  background:
+    repeating-conic-gradient(from 0deg at 31% 27%, rgba(255, 255, 255, 0.06) 0deg 0.0003deg, transparent 0.0006deg 0.0018deg),
+    repeating-conic-gradient(from 90deg at 73% 68%, rgba(255, 255, 255, 0.05) 0deg 0.0004deg, transparent 0.0008deg 0.002deg);
+}
+
+/* ------------------------------ hero anchors ------------------------------- */
+
+.stage {
+  position: absolute;
+  left: 50%;
+  top: var(--hero-y);
+  transform: translate(-50%, -50%);
+  z-index: 10;
+}
+
+.logo {
+  width: var(--logo-w);
+  max-width: none;
+  height: auto;
+  filter: invert(1) drop-shadow(0 0 3px rgba(220, 235, 255, 0.28));
+}
+
+.subtitle {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--hero-y) + var(--glyph-w) * 0.155);
+  transform: translateX(-50%);
+  z-index: 10;
+  white-space: nowrap;
+}
+
+.daterow {
+  position: absolute;
+  left: 50%;
+  top: 56svh;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+}
+
+.cta {
+  position: absolute;
+  left: 50%;
+  top: 65svh;
+  transform: translateX(-50%);
+  z-index: 10;
+}
+
+/* --------------------------------- pieces ---------------------------------- */
+
+.tick {
+  width: clamp(28px, 9vw, 112px);
+  height: 1px;
+  background: linear-gradient(90deg, var(--blue) 0 48%, var(--orange) 52%);
+  box-shadow: 0 0 8px rgba(160, 150, 150, 0.45);
+}
+
+/* No border by request — so the affordance has to come from weight and light
+   instead of a box, or it reads as another line of copy rather than the one
+   thing on the page you are meant to press. */
+.btn-tickets {
+  /* positioning comes from .cta (absolute) — do not set position here,
+     it would override .cta's `absolute` at equal specificity */
+  background: transparent;
+  color: #fff;
+  text-shadow: 0 0 18px rgba(255, 150, 60, 0.35);
+  transition:
+    text-shadow 0.3s ease,
+    letter-spacing 0.3s ease;
+}
+
+/* A hairline that carries the blue→orange identity, sized to the text. It is
+   the CTA's only chrome: enough to mark it as a control, not a box. */
+.btn-tickets::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0.2rem;
+  width: 62%;
+  height: 1px;
+  translate: -50% 0;
+  background: linear-gradient(90deg, transparent, var(--blue) 22%, var(--orange) 78%, transparent);
+  opacity: 0.85;
+  transition:
+    width 0.3s ease,
+    opacity 0.3s ease;
+}
+
+.btn-tickets:hover {
+  text-shadow:
+    0 0 26px rgba(255, 170, 90, 0.75),
+    0 0 60px rgba(255, 123, 23, 0.35);
+}
+
+.btn-tickets:hover::after {
+  width: 88%;
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* `paused` rather than `none`: every layer carries a negative delay, so
+     pausing freezes the field at a composed point mid-cycle. `none` would snap
+     everything back to its 0% origin at once — a flatter, more symmetric
+     picture than the one that was designed. */
+  .camera,
+  .atmos-field,
+  .orb,
+  .orb__core {
+    animation-play-state: paused;
+  }
+}
+
+/* ------------------- portrait overrides (source-order tail) -----------------
+   These must come after .atmos-wash and .vignette above: the selectors are the
+   same single class, so equal specificity makes source order the tiebreak.
+   Declared alongside the other portrait rules near the top of the file they
+   were silently overridden by the landscape defaults below them. */
+@media (orientation: portrait) {
+  /* Gels restaged on the diagonal: wide and shallow, stacked top and bottom
+     rather than left and right, so the transition runs across the long axis of
+     the frame and has the whole viewport height to fade across. */
+  .atmos-wash {
+    background:
+      radial-gradient(66% 30% at 2% 10%, rgba(12, 132, 255, 0.74), rgba(12, 132, 255, 0.3) 36%, rgba(12, 132, 255, 0.08) 56%, transparent 76%),
+      radial-gradient(58% 26% at -10% 32%, rgba(8, 108, 240, 0.52), rgba(8, 108, 240, 0.2) 38%, transparent 76%),
+      radial-gradient(48% 20% at 34% -2%, rgba(16, 142, 255, 0.36), rgba(16, 142, 255, 0.13) 40%, transparent 74%),
+      radial-gradient(42% 16% at 78% 4%, rgba(10, 118, 248, 0.22), transparent 72%),
+      radial-gradient(68% 31% at 98% 90%, rgba(255, 104, 10, 0.76), rgba(255, 104, 10, 0.32) 36%, rgba(255, 104, 10, 0.09) 56%, transparent 76%),
+      radial-gradient(58% 26% at 110% 68%, rgba(255, 90, 8, 0.54), rgba(255, 90, 8, 0.21) 38%, transparent 76%),
+      radial-gradient(48% 20% at 66% 102%, rgba(255, 126, 22, 0.38), rgba(255, 126, 22, 0.14) 40%, transparent 74%),
+      radial-gradient(42% 16% at 22% 96%, rgba(255, 112, 16, 0.22), transparent 72%);
+  }
+
+  /* Wider and shallower than the landscape well: on the diagonal the centre
+     band is where the content sits, and a tight circular well would read as a
+     dark disc cutting across the colour axis. */
+  .vignette {
+    background:
+      radial-gradient(
+        86% 34% at 50% 42%,
+        rgba(2, 3, 6, 0.88) 0%,
+        rgba(2, 3, 6, 0.46) 48%,
+        rgba(2, 3, 6, 0.13) 72%,
+        transparent 86%
+      ),
+      radial-gradient(136% 104% at 50% 50%, transparent 78%, rgba(2, 3, 6, 0.38) 100%);
+  }
 }
