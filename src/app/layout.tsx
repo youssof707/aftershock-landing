@@ -17,7 +17,10 @@ const DESCRIPTION =
   "Montreal's Favorite Afters. Sat Oct 3, 10PM – 3AM at St. Catherine Hall.";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://aftershock.events"),
+  // The apex 308-redirects to www, so anchoring here keeps `canonical`,
+  // `og:url` and the generated image URLs off a redirect — scrapers otherwise
+  // cache the 308 and split their store across two URLs for the same page.
+  metadataBase: new URL("https://www.aftershock.events"),
   title: TITLE,
   description: DESCRIPTION,
   applicationName: "Aftershock",

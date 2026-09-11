@@ -172,13 +172,26 @@ export default function Home() {
           href="https://www.stagelinetickets.com/show/6a9e8ca7f166055c10ef67bc?src=site"
           target="_blank"
           rel="noopener noreferrer"
-          className="relative pb-2 after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-(--orange) after:shadow-[0_0_8px_rgba(255,123,23,0.7)]"
+          /* The trailing letterspace after the final S is inside this box, so
+             `inset-x-0` drew the hairline ~4px past the ink and the negative
+             margin pulls the ink itself flush with the header's padding. */
+          className="relative -mr-[0.35em] pb-2 after:absolute after:bottom-0 after:left-0 after:right-[0.35em] after:h-px after:bg-(--orange) after:shadow-[0_0_8px_rgba(255,123,23,0.7)]"
         >
           Tickets
         </a>
       </header>
 
       <main className="contents">
+        {/* kicker — the eyebrow above the wordmark. Contrast with the wordmark
+            comes from SCALE, not from a second type voice: small, quiet and
+            widely tracked against something huge and tight is a real
+            typographic relationship, whereas an italic mono line next to a
+            heavy gothic display face is just two unrelated fonts touching.
+            Tracking and its optical-centring correction live in globals.css. */}
+        <p className="kicker text-[clamp(1.05rem,4.4vw,1.35rem)] text-white/45">
+          Looking for afters?
+        </p>
+
         {/* wordmark */}
         <div className="stage">
           <Image
@@ -191,21 +204,16 @@ export default function Home() {
           />
         </div>
 
-        <p className="subtitle text-[clamp(0.6rem,1.9vw,0.95rem)] tracking-[clamp(0.18em,1.4vw,0.55em)] text-white/90">
-          Montreal&apos;s Favorite Afters
-        </p>
-
-        {/* date / time */}
-        <div className="daterow flex items-center justify-center gap-[3vw] whitespace-nowrap text-[clamp(0.55rem,2.4vw,1.05rem)] tracking-[clamp(0.08em,0.9vw,0.35em)]">
+        {/* date / time — stacked below `sm` so two clamp-scaled strings never
+            have to fight for one row's width on a phone; side by side above
+            it, where there's room to spare. */}
+        <div className="daterow flex flex-col items-center justify-center gap-2 whitespace-nowrap text-[clamp(0.75rem,3.4vw,1.4rem)] sm:flex-row sm:gap-[3vw]">
           <span>Sat Oct 3</span>
-          <span className="tick" aria-hidden />
           <span>10pm – 3am</span>
         </div>
 
-        {/* venue — its own line rather than a third cell in the date row: that
-            row is `whitespace-nowrap`, and three items plus two ticks overflows
-            a phone long before the clamp floors bottom out. */}
-        <p className="venue text-[clamp(0.5rem,1.9vw,0.85rem)] tracking-[clamp(0.12em,1.1vw,0.4em)] text-white/65">
+        {/* venue — its own line below the date/time block */}
+        <p className="venue text-[clamp(0.75rem,3.4vw,1.4rem)]">
           St. Catherine Hall
         </p>
 
@@ -214,7 +222,7 @@ export default function Home() {
           href="https://www.stagelinetickets.com/show/6a9e8ca7f166055c10ef67bc?src=site"
           target="_blank"
           rel="noopener noreferrer"
-          className="cta btn-tickets flex w-[clamp(230px,34vw,340px)] items-center justify-center py-[1.1rem] text-[clamp(0.8rem,1.9vw,1.05rem)] tracking-[0.4em]"
+          className="cta btn-tickets flex w-[clamp(230px,34vw,340px)] items-center justify-center py-[1.1rem] text-[clamp(0.8rem,1.9vw,1.05rem)]"
         >
           Get Tickets
         </a>

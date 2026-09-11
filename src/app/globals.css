@@ -59,8 +59,8 @@ body {
   /* Orb size unit. vmax is a landscape-only assumption — see the note on BAND
      in page.tsx for why portrait needs a vmin basis. */
   --su: 1vmax;
-  /* Vertical anchor for the wordmark; the subtitle hangs off it so the two
-     never drift apart. */
+  /* Vertical anchor for the wordmark; the kicker above it hangs off this same
+     value so the two never drift apart. */
   --hero-y: 36svh;
   /* Horizontal spread of the orb bank about the centreline (1 = as authored). */
   --xspread: 1;
@@ -505,13 +505,45 @@ body {
   filter: invert(1) drop-shadow(0 0 3px rgba(220, 235, 255, 0.28));
 }
 
-.subtitle {
+/* The eyebrow above the wordmark.
+
+   Offset is scaled off --glyph-w, not svh, so the gap stays proportional to the
+   wordmark at every viewport. The wordmark's ink is ~0.21 * --glyph-w tall, so
+   its top edge sits at -0.105; anchoring the eyebrow's centre at -0.205 leaves
+   roughly half the wordmark's own cap height as clear space. Anything tighter
+   and it reads as a collision rather than a relationship. The offset has grown
+   alongside the type: a taller line box eats into the visible gap from below,
+   so holding the gap constant means pushing the anchor further out. */
+.kicker {
   position: absolute;
   left: 50%;
-  top: calc(var(--hero-y) + var(--glyph-w) * 0.155);
-  transform: translateX(-50%);
+  top: calc(var(--hero-y) - var(--glyph-w) * 0.205);
+  transform: translate(-50%, -50%);
   z-index: 10;
   white-space: nowrap;
+  /* Wide tracking is what makes the line read as *set* rather than merely
+     small, and it gives the letterforms air instead of letting them clump into
+     a grey smudge against the atmosphere.
+
+     The floor is the load-bearing number, not the ceiling. All 19 characters
+     are on one `nowrap` line and Geist Mono advances a flat 0.6em, so the line
+     costs 19 * (0.6em + tracking) — tracking is nearly a third of the width at
+     these values. Dropping the floor from 0.26em buys back the room the larger
+     type needs, which is what keeps it inside a 320px phone. */
+  --tracking: clamp(0.2em, 1vw, 0.4em);
+  letter-spacing: var(--tracking);
+  /* Optical centring. `letter-spacing` is applied after the FINAL glyph too, so
+     the box is one tracking unit wider than the ink and centring the box puts
+     the ink half a unit left of true centre — the classic letterspaced-and-
+     centred mistake. One tracking unit of left padding restores it: the box
+     grows on the left by exactly what the trailing space added on the right,
+     so ink centre and box centre coincide again. og-card.tsx compensates for
+     the identical behaviour in Satori with `marginLeft` — same bug, same fix. */
+  padding-left: var(--tracking);
+  /* The wordmark carries a drop-shadow and the CTA a text-shadow; without one
+     the eyebrow is the only element in the hero that isn't sitting in the
+     scene's light, which is what makes it look pasted on top of the render. */
+  text-shadow: 0 0 14px rgba(206, 226, 255, 0.22);
 }
 
 /* The date row and the venue read as one block of billing, so they sit close
@@ -523,6 +555,8 @@ body {
   top: 55svh;
   transform: translate(-50%, -50%);
   z-index: 10;
+  --tracking: clamp(0.1em, 1vw, 0.35em);
+  letter-spacing: var(--tracking);
 }
 
 .venue {
@@ -532,6 +566,8 @@ body {
   transform: translate(-50%, -50%);
   z-index: 10;
   white-space: nowrap;
+  --tracking: clamp(0.1em, 1vw, 0.35em);
+  letter-spacing: var(--tracking);
 }
 
 .cta {
@@ -540,16 +576,48 @@ body {
   top: 66svh;
   transform: translateX(-50%);
   z-index: 10;
+  --tracking: 0.4em;
+  letter-spacing: var(--tracking);
+}
+
+/* One shared optical centre for the whole hero column — see the note on
+   .kicker for why a centred letterspaced line needs this, and note that these
+   lines sit directly under it, so an uncorrected half-unit drift here reads as
+   the stack being crooked rather than as one line being off.
+
+   Per-span in the date row rather than on the row itself so it holds in both
+   layouts: stacked, each span centres its own ink; side by side, the two
+   corrections and the two trailing spaces cancel across the group.
+
+   The CTA is border-box with a fixed width, so left padding shrinks the content
+   box and shifts its centred text right by half a unit — which also brings the
+   text back into line with the ::after hairline, since that is positioned
+   against the unchanged padding box. */
+.daterow > span,
+.venue,
+.cta {
+  padding-left: var(--tracking);
+}
+
+/* Below Tailwind's `sm` (640px) the date row wraps to two lines (see the
+   `flex-col` on `.daterow` in page.tsx), which roughly doubles its own
+   height. Nudge the anchors apart to keep that stack, the venue line and the
+   CTA from crowding into each other. */
+@media (max-width: 639.98px) {
+  .daterow {
+    top: 53.5svh;
+  }
+
+  .venue {
+    top: 60.5svh;
+  }
+
+  .cta {
+    top: 67svh;
+  }
 }
 
 /* --------------------------------- pieces ---------------------------------- */
-
-.tick {
-  width: clamp(28px, 9vw, 112px);
-  height: 1px;
-  background: linear-gradient(90deg, var(--blue) 0 48%, var(--orange) 52%);
-  box-shadow: 0 0 8px rgba(160, 150, 150, 0.45);
-}
 
 /* No border by request — so the affordance has to come from weight and light
    instead of a box, or it reads as another line of copy rather than the one
