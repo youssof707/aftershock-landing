@@ -1,5 +1,4 @@
 import Image from "next/image";
-import AtmosInertia from "./atmos-inertia";
 
 /* ---------------------------------------------------------------------------
  * Atmosphere — a depth rig, not a stack of flat layers.
@@ -203,6 +202,13 @@ export default function Home() {
           <span>10pm – 3am</span>
         </div>
 
+        {/* venue — its own line rather than a third cell in the date row: that
+            row is `whitespace-nowrap`, and three items plus two ticks overflows
+            a phone long before the clamp floors bottom out. */}
+        <p className="venue text-[clamp(0.5rem,1.9vw,0.85rem)] tracking-[clamp(0.12em,1.1vw,0.4em)] text-white/65">
+          St. Catherine Hall
+        </p>
+
         {/* cta */}
         <a
           href="https://www.stagelinetickets.com/show/6a9e8ca7f166055c10ef67bc?src=site"
@@ -213,11 +219,6 @@ export default function Home() {
           Get Tickets
         </a>
       </main>
-
-      {/* Touch/wheel-driven playbackRate on the rig above. Renders nothing;
-          page.tsx stays a server component and the route stays statically
-          prerendered. */}
-      <AtmosInertia />
     </div>
   );
 }

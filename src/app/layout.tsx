@@ -13,7 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 const TITLE = "Aftershock — Montreal's Favorite Afters";
-const DESCRIPTION = "Montreal's Favorite Afters. Sat Oct 3, 10PM – 3AM.";
+const DESCRIPTION =
+  "Montreal's Favorite Afters. Sat Oct 3, 10PM – 3AM at St. Catherine Hall.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://aftershock.events"),

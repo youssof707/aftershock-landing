@@ -32,11 +32,9 @@ body {
    removes the overflow if it exists, overscroll-behavior kills the elastic
    edge. On desktop lvh == svh and the whole block is a no-op.
 
-   Deliberately NOT `touch-action: none`. That would also disable pinch-zoom
-   (WCAG 1.4.4) for no benefit — the inertia listeners in atmos-inertia.tsx are
-   passive and never preventDefault, so touchmove fires either way.
-   overflow:hidden does not block panning a pinch-zoomed page; that is
-   visual-viewport panning.
+   Deliberately NOT `touch-action: none`, which would also disable pinch-zoom
+   (WCAG 1.4.4) for no benefit. overflow:hidden does not block panning a
+   pinch-zoomed page; that is visual-viewport panning.
 
    Unlayered, so it beats Tailwind's .h-full/.min-h-full utilities regardless
    of specificity — the same mechanism the body rule above relies on. */
@@ -516,18 +514,30 @@ body {
   white-space: nowrap;
 }
 
+/* The date row and the venue read as one block of billing, so they sit close
+   together (4.5svh apart) and the CTA is pushed down to keep a clear gap below
+   them — otherwise the venue line looks like a caption on the button. */
 .daterow {
   position: absolute;
   left: 50%;
-  top: 56svh;
+  top: 55svh;
   transform: translate(-50%, -50%);
   z-index: 10;
+}
+
+.venue {
+  position: absolute;
+  left: 50%;
+  top: 59.5svh;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  white-space: nowrap;
 }
 
 .cta {
   position: absolute;
   left: 50%;
-  top: 65svh;
+  top: 66svh;
   transform: translateX(-50%);
   z-index: 10;
 }
@@ -587,10 +597,7 @@ body {
   /* `paused` rather than `none`: every layer carries a negative delay, so
      pausing freezes the field at a composed point mid-cycle. `none` would snap
      everything back to its 0% origin at once — a flatter, more symmetric
-     picture than the one that was designed.
-
-     atmos-inertia.tsx bails on this same query — a swipe must not be able to
-     un-pause the rig. Keep the two in sync. */
+     picture than the one that was designed. */
   .camera,
   .atmos-field,
   .orb,

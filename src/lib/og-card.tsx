@@ -119,6 +119,17 @@ export function renderOgCard() {
             />
             <div style={{ display: "flex" }}>10PM – 3AM</div>
           </div>
+
+          <div
+            style={{
+              marginTop: 24,
+              fontSize: 19,
+              letterSpacing: 8,
+              color: "rgba(244, 246, 250, 0.62)",
+            }}
+          >
+            ST. CATHERINE HALL
+          </div>
         </div>
       </div>
     ),
