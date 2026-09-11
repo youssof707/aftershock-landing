@@ -1,4 +1,5 @@
 import Image from "next/image";
+import AtmosInertia from "./atmos-inertia";
 
 /* ---------------------------------------------------------------------------
  * Atmosphere — a depth rig, not a stack of flat layers.
@@ -212,6 +213,11 @@ export default function Home() {
           Get Tickets
         </a>
       </main>
+
+      {/* Touch/wheel-driven playbackRate on the rig above. Renders nothing;
+          page.tsx stays a server component and the route stays statically
+          prerendered. */}
+      <AtmosInertia />
     </div>
   );
 }

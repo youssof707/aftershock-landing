@@ -22,6 +22,31 @@ body {
   font-family: var(--font-mono), monospace;
 }
 
+/* ------------------------------ no bounce ---------------------------------
+   `html.h-full` is height:100%, resolved against the initial containing block.
+   Whether the ICB tracks the small or the large viewport decides whether this
+   page has ~60-90px of real scrollable overflow on a phone (lvh - svh, the gap
+   iOS uses to collapse its toolbar) or none at all and a purely elastic bounce.
+   Chrome's mobile emulation sets svh == lvh, so that is a device question, not
+   a testable one — this rule is written to be correct either way: overflow
+   removes the overflow if it exists, overscroll-behavior kills the elastic
+   edge. On desktop lvh == svh and the whole block is a no-op.
+
+   Deliberately NOT `touch-action: none`. That would also disable pinch-zoom
+   (WCAG 1.4.4) for no benefit — the inertia listeners in atmos-inertia.tsx are
+   passive and never preventDefault, so touchmove fires either way.
+   overflow:hidden does not block panning a pinch-zoomed page; that is
+   visual-viewport panning.
+
+   Unlayered, so it beats Tailwind's .h-full/.min-h-full utilities regardless
+   of specificity — the same mechanism the body rule above relies on. */
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 /* ================================== scene ================================== */
 /* Layout anchors mirror the poster: wordmark center at 33svh, subtitle ~45svh,
    date row 63.5svh, CTA 71.5svh, footer pinned. Everything scales off
@@ -562,7 +587,10 @@ body {
   /* `paused` rather than `none`: every layer carries a negative delay, so
      pausing freezes the field at a composed point mid-cycle. `none` would snap
      everything back to its 0% origin at once — a flatter, more symmetric
-     picture than the one that was designed. */
+     picture than the one that was designed.
+
+     atmos-inertia.tsx bails on this same query — a swipe must not be able to
+     un-pause the rig. Keep the two in sync. */
   .camera,
   .atmos-field,
   .orb,
